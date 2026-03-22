@@ -10,7 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   // Check KV is wired up
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     return res.status(503).json({ error: 'sync_not_configured' })
   }
 
@@ -25,10 +25,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const key = `chrono:v1:${token}`
 
   try {
-    const { kv } = await import('@vercel/kv')
+    const { Redis } = await import('@upstash/redis')
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
 
     if (req.method === 'GET') {
-      const data = await kv.get(key)
+      const data = await redis.get(key)
       if (!data) return res.status(404).json({ error: 'not_found' })
       return res.status(200).json({ data })
     }
@@ -41,12 +45,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Reject suspiciously large payloads (>256 KB)
       const size = JSON.stringify(payload).length
       if (size > 262144) return res.status(413).json({ error: 'payload_too_large' })
-      await kv.set(key, { ...payload, updatedAt: Date.now() })
+      await redis.set(key, { ...payload, updatedAt: Date.now() })
       return res.status(200).json({ ok: true })
     }
 
     if (req.method === 'DELETE') {
-      await kv.del(key)
+      await redis.del(key)
       return res.status(200).json({ ok: true })
     }
 
