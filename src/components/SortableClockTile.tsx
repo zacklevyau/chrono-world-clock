@@ -2,6 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ClockTile } from './ClockTile'
 import type { FavouriteLocation } from '../types'
+import type { WeatherInfo } from '../hooks/useWeather'
 
 interface SortableClockTileProps {
   location: FavouriteLocation
@@ -11,6 +12,7 @@ interface SortableClockTileProps {
   onSelectForWarp: (id: string) => void
   isAnchor: boolean
   showSeconds: boolean
+  weather?: WeatherInfo
 }
 
 export function SortableClockTile(props: SortableClockTileProps) {

@@ -20,6 +20,7 @@ import { useFavourites } from './hooks/useFavourites'
 import { useSettings } from './hooks/useSettings'
 import { usePinLock } from './hooks/usePinLock'
 import { useSync } from './hooks/useSync'
+import { useWeather } from './hooks/useWeather'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Plus } from 'lucide-react'
 
@@ -29,6 +30,7 @@ export default function App() {
   const { settings, updateSettings, replaceSettings } = useSettings()
   const { isLocked, pinHash, error: pinError, ready: pinReady, unlock, changePin, clearError } = usePinLock()
   const { status: syncStatus, fetchData, pushData, rekeyData } = useSync(pinHash)
+  const weatherMap = useWeather(favourites)
 
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -49,7 +51,6 @@ export default function App() {
     setSyncBootstrapped(true)
     fetchData().then(data => {
       if (!data) {
-        // No cloud data yet — push local state up
         pushData({ favourites, settings })
       } else {
         replaceAll(data.favourites)
@@ -93,7 +94,6 @@ export default function App() {
     return { ok: result.ok }
   }
 
-  // Show PIN lock screen while locked
   if (isLocked) {
     return <PinLock onUnlock={unlock} error={pinError} onClearError={clearError} ready={pinReady} />
   }
@@ -101,7 +101,6 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header
-        onAddClick={() => setIsAddOpen(true)}
         isWarpMode={isWarpMode}
         onToggleWarp={handleToggleWarp}
         onSettingsClick={() => setIsSettingsOpen(true)}
@@ -128,10 +127,6 @@ export default function App() {
           <div className="empty-state">
             <span className="empty-icon">🕐</span>
             <p className="empty-text">Add your first location to get started</p>
-            <button className="empty-add-btn" onClick={() => setIsAddOpen(true)}>
-              <Plus size={16} />
-              Add Location
-            </button>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -147,6 +142,7 @@ export default function App() {
                     onSelectForWarp={setWarpAnchorId}
                     isAnchor={location.id === warpAnchorId}
                     showSeconds={settings.showSeconds}
+                    weather={weatherMap.get(location.timezone)}
                   />
                 ))}
               </div>
@@ -154,6 +150,16 @@ export default function App() {
           </DndContext>
         )}
       </main>
+
+      {/* Floating action button — Add Location */}
+      <button
+        className="fab-add"
+        onClick={() => setIsAddOpen(true)}
+        aria-label="Add location"
+        title="Add location"
+      >
+        <Plus size={24} />
+      </button>
 
       {isAddOpen && (
         <AddLocationModal
