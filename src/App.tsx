@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -14,22 +14,28 @@ import { SortableClockTile } from './components/SortableClockTile'
 import { AddLocationModal } from './components/AddLocationModal'
 import { TimeWarpPanel } from './components/TimeWarpPanel'
 import { SettingsPanel } from './components/SettingsPanel'
+import { PinLock } from './components/PinLock'
 import { useLiveTime } from './hooks/useLiveTime'
 import { useFavourites } from './hooks/useFavourites'
 import { useSettings } from './hooks/useSettings'
+import { usePinLock } from './hooks/usePinLock'
+import { useSync } from './hooks/useSync'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Plus } from 'lucide-react'
 
 export default function App() {
   const now = useLiveTime()
-  const { favourites, addFavourite, removeFavourite, reorderFavourites, updateFavouriteColor } = useFavourites()
-  const { settings, updateSettings } = useSettings()
+  const { favourites, addFavourite, removeFavourite, reorderFavourites, updateFavouriteColor, replaceAll } = useFavourites()
+  const { settings, updateSettings, replaceSettings } = useSettings()
+  const { isLocked, pinHash, error: pinError, ready: pinReady, unlock, changePin, clearError } = usePinLock()
+  const { status: syncStatus, fetchData, pushData, rekeyData } = useSync(pinHash)
 
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isWarpMode, setIsWarpMode] = useState(false)
   const [warpAnchorId, setWarpAnchorId] = useState<string | null>(null)
   const [warpTime, setWarpTime] = useState<Date | null>(null)
+  const [syncBootstrapped, setSyncBootstrapped] = useState(false)
 
   const displayTime = isWarpMode && warpTime ? warpTime : now
 
@@ -37,7 +43,31 @@ export default function App() {
     ? favourites.find(f => f.id === warpAnchorId) ?? null
     : null
 
-  // DnD sensors — require 8px movement before activating drag (prevents accidental drags on click)
+  // After unlock: fetch cloud data once and hydrate local state
+  useEffect(() => {
+    if (isLocked || !pinHash || syncBootstrapped) return
+    setSyncBootstrapped(true)
+    fetchData().then(data => {
+      if (!data) {
+        // No cloud data yet — push local state up
+        pushData({ favourites, settings })
+      } else {
+        replaceAll(data.favourites)
+        replaceSettings(data.settings)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocked, pinHash, syncBootstrapped])
+
+  // Push to cloud whenever favourites or settings change (after initial load)
+  const syncIfReady = useCallback(() => {
+    if (!isLocked && pinHash && syncBootstrapped) {
+      pushData({ favourites, settings })
+    }
+  }, [isLocked, pinHash, syncBootstrapped, favourites, settings, pushData])
+
+  useEffect(() => { syncIfReady() }, [favourites, settings]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -51,17 +81,21 @@ export default function App() {
   }
 
   function handleToggleWarp() {
-    if (isWarpMode) {
-      handleExitWarp()
-    } else {
-      setIsWarpMode(true)
-    }
+    if (isWarpMode) { setIsWarpMode(false); setWarpAnchorId(null); setWarpTime(null) }
+    else setIsWarpMode(true)
   }
 
-  function handleExitWarp() {
-    setIsWarpMode(false)
-    setWarpAnchorId(null)
-    setWarpTime(null)
+  async function handleChangePin(currentPin: string, newPin: string): Promise<{ ok: boolean }> {
+    const result = await changePin(currentPin, newPin)
+    if (result.ok && result.oldHash && result.newHash) {
+      await rekeyData(result.oldHash, result.newHash, { favourites, settings })
+    }
+    return { ok: result.ok }
+  }
+
+  // Show PIN lock screen while locked
+  if (isLocked) {
+    return <PinLock onUnlock={unlock} error={pinError} onClearError={clearError} ready={pinReady} />
   }
 
   return (
@@ -71,6 +105,7 @@ export default function App() {
         isWarpMode={isWarpMode}
         onToggleWarp={handleToggleWarp}
         onSettingsClick={() => setIsSettingsOpen(true)}
+        syncStatus={syncStatus}
       />
 
       <TimeWarpPanel
@@ -78,7 +113,7 @@ export default function App() {
         anchorLocation={anchorLocation}
         displayTime={displayTime}
         onWarp={setWarpTime}
-        onExit={handleExitWarp}
+        onExit={() => { setIsWarpMode(false); setWarpAnchorId(null); setWarpTime(null) }}
       />
 
       {isWarpMode && warpTime && anchorLocation && (
@@ -135,6 +170,7 @@ export default function App() {
         onUpdateSettings={updateSettings}
         favourites={favourites}
         onUpdateColor={updateFavouriteColor}
+        onChangePin={handleChangePin}
       />
     </div>
   )

@@ -2,6 +2,7 @@ import { X, GripVertical } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import type { FavouriteLocation } from '../types'
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
+import { getFlag } from '../data/countryCodes'
 
 interface ClockTileProps {
   location: FavouriteLocation
@@ -43,6 +44,7 @@ export function ClockTile({
   const dateStr = formatInTimeZone(displayTime, location.timezone, 'EEE, d MMM yyyy')
   const offset = formatOffset(location.timezone, displayTime)
   const timeColor = location.color || ACCENT
+  const flag = getFlag(location.country)
 
   function handleClick() {
     if (isWarpMode) onSelectForWarp(location.id)
@@ -59,25 +61,28 @@ export function ClockTile({
     >
       <div className="tile-top-row">
         <span className="tile-city">{location.city}</span>
-        <div className="tile-actions">
-          {/* Drag handle — always rendered so useSortable listeners are always attached */}
-          <span
-            className="tile-drag-handle"
-            {...dragListeners}
-            title="Drag to reorder"
-            aria-label="Drag to reorder"
-            onClick={e => e.stopPropagation()}
-          >
-            <GripVertical size={14} />
-          </span>
-          <button
-            className="tile-remove-btn"
-            onClick={(e) => { e.stopPropagation(); onRemove(location.id) }}
-            aria-label={`Remove ${location.city}`}
-            tabIndex={0}
-          >
-            <X size={14} />
-          </button>
+
+        {/* Top-right: flag (always visible) + actions (visible on hover, overlay flag) */}
+        <div className="tile-corner">
+          {flag && <span className="tile-flag" aria-label={location.country}>{flag}</span>}
+          <div className="tile-actions">
+            <span
+              className="tile-drag-handle"
+              {...dragListeners}
+              title="Drag to reorder"
+              aria-label="Drag to reorder"
+              onClick={e => e.stopPropagation()}
+            >
+              <GripVertical size={14} />
+            </span>
+            <button
+              className="tile-remove-btn"
+              onClick={(e) => { e.stopPropagation(); onRemove(location.id) }}
+              aria-label={`Remove ${location.city}`}
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

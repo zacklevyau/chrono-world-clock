@@ -25,5 +25,10 @@ export function useSettings() {
     setSettings(prev => ({ ...prev, ...patch }))
   }, [])
 
-  return { settings, updateSettings }
+  /** Replace all settings (used for cloud sync import) */
+  const replaceSettings = useCallback((newSettings: AppSettings) => {
+    setSettings(newSettings)
+  }, [])
+
+  return { settings, updateSettings, replaceSettings }
 }

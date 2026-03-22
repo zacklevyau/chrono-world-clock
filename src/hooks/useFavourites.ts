@@ -48,5 +48,10 @@ export function useFavourites() {
     setFavourites(prev => prev.map(f => f.id === id ? { ...f, color } : f))
   }, [])
 
-  return { favourites, addFavourite, removeFavourite, reorderFavourites, updateFavouriteColor }
+  /** Replace all favourites (used for cloud sync import) */
+  const replaceAll = useCallback((newFavourites: FavouriteLocation[]) => {
+    setFavourites(newFavourites)
+  }, [])
+
+  return { favourites, addFavourite, removeFavourite, reorderFavourites, updateFavouriteColor, replaceAll }
 }
