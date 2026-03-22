@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { arrayMove } from '@dnd-kit/sortable'
 import type { FavouriteLocation, TimezoneEntry } from '../types'
 
 const STORAGE_KEY = 'chrono-favourites'
@@ -34,5 +35,18 @@ export function useFavourites() {
     setFavourites(prev => prev.filter(f => f.id !== id))
   }, [])
 
-  return { favourites, addFavourite, removeFavourite }
+  const reorderFavourites = useCallback((activeId: string, overId: string) => {
+    setFavourites(prev => {
+      const oldIndex = prev.findIndex(f => f.id === activeId)
+      const newIndex = prev.findIndex(f => f.id === overId)
+      if (oldIndex === -1 || newIndex === -1) return prev
+      return arrayMove(prev, oldIndex, newIndex)
+    })
+  }, [])
+
+  const updateFavouriteColor = useCallback((id: string, color: string) => {
+    setFavourites(prev => prev.map(f => f.id === id ? { ...f, color } : f))
+  }, [])
+
+  return { favourites, addFavourite, removeFavourite, reorderFavourites, updateFavouriteColor }
 }

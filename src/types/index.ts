@@ -7,4 +7,9 @@ export interface TimezoneEntry {
 
 export interface FavouriteLocation extends TimezoneEntry {
   id: string
+  color?: string
+}
+
+export interface AppSettings {
+  showSeconds: boolean
 }

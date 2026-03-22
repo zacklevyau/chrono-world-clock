@@ -1,6 +1,7 @@
-import { X } from 'lucide-react'
+import { X, GripVertical } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import type { FavouriteLocation } from '../types'
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
 
 interface ClockTileProps {
   location: FavouriteLocation
@@ -9,11 +10,13 @@ interface ClockTileProps {
   isWarpMode: boolean
   onSelectForWarp: (id: string) => void
   isAnchor: boolean
+  showSeconds: boolean
+  dragListeners?: SyntheticListenerMap
 }
 
 function formatOffset(tz: string, date: Date): string {
   try {
-    const raw = formatInTimeZone(date, tz, 'xxx') // "+05:30", "-08:00", "+00:00"
+    const raw = formatInTimeZone(date, tz, 'xxx')
     if (raw === '+00:00' || raw === '-00:00') return 'UTC'
     const sign = raw[0]
     const [h, m] = raw.slice(1).split(':').map(Number)
@@ -23,6 +26,8 @@ function formatOffset(tz: string, date: Date): string {
   }
 }
 
+const ACCENT = '#00E5CC'
+
 export function ClockTile({
   location,
   displayTime,
@@ -30,10 +35,14 @@ export function ClockTile({
   isWarpMode,
   onSelectForWarp,
   isAnchor,
+  showSeconds,
+  dragListeners,
 }: ClockTileProps) {
-  const timeStr = formatInTimeZone(displayTime, location.timezone, 'HH:mm:ss')
+  const timeFormat = showSeconds ? 'HH:mm:ss' : 'HH:mm'
+  const timeStr = formatInTimeZone(displayTime, location.timezone, timeFormat)
   const dateStr = formatInTimeZone(displayTime, location.timezone, 'EEE, d MMM yyyy')
   const offset = formatOffset(location.timezone, displayTime)
+  const timeColor = location.color || ACCENT
 
   function handleClick() {
     if (isWarpMode) onSelectForWarp(location.id)
@@ -50,18 +59,30 @@ export function ClockTile({
     >
       <div className="tile-top-row">
         <span className="tile-city">{location.city}</span>
-        <button
-          className="tile-remove-btn"
-          onClick={(e) => { e.stopPropagation(); onRemove(location.id) }}
-          aria-label={`Remove ${location.city}`}
-          tabIndex={0}
-        >
-          <X size={14} />
-        </button>
+        <div className="tile-actions">
+          {/* Drag handle — always rendered so useSortable listeners are always attached */}
+          <span
+            className="tile-drag-handle"
+            {...dragListeners}
+            title="Drag to reorder"
+            aria-label="Drag to reorder"
+            onClick={e => e.stopPropagation()}
+          >
+            <GripVertical size={14} />
+          </span>
+          <button
+            className="tile-remove-btn"
+            onClick={(e) => { e.stopPropagation(); onRemove(location.id) }}
+            aria-label={`Remove ${location.city}`}
+            tabIndex={0}
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
 
       <div className="tile-time-block">
-        <div className="time-display">{timeStr}</div>
+        <div className="time-display" style={{ color: timeColor }}>{timeStr}</div>
         <div className="tile-date">{dateStr}</div>
       </div>
 
