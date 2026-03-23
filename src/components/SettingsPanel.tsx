@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { AppSettings, FavouriteLocation } from '../types'
 
@@ -15,23 +15,22 @@ interface SettingsPanelProps {
 const ACCENT = '#00E5CC'
 
 function ColorSwatch({ id, color, onChange }: { id: string; color: string; onChange: (id: string, color: string) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null)
   const currentColor = color || ACCENT
+  function handleColorEvent(e: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) {
+    onChange(id, (e.target as HTMLInputElement).value)
+  }
   return (
-    <div className="color-swatch-wrap">
-      <button
-        className="color-swatch-btn"
-        style={{ background: currentColor }}
-        onClick={() => inputRef.current?.click()}
-        title="Pick colour"
-        aria-label="Pick colour"
-      />
+    <div className="color-swatch-wrap" title="Pick colour">
+      {/* Visual swatch — pointer-events:none so taps fall through to the input */}
+      <div className="color-swatch-display" style={{ background: currentColor }} aria-hidden="true" />
+      {/* Transparent input covers the swatch; user taps it directly (no programmatic .click()) */}
       <input
-        ref={inputRef}
         type="color"
         value={currentColor}
-        onChange={e => onChange(id, e.target.value)}
-        className="color-input-hidden"
+        onChange={handleColorEvent}
+        onInput={handleColorEvent}
+        className="color-input-overlay"
+        aria-label="Pick colour"
       />
     </div>
   )
